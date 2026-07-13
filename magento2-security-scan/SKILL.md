@@ -19,6 +19,10 @@ metadata:
 
 This skill performs security scanning for vulnerabilities, misconfigurations, and compliance issues.
 
+## Related Skills
+
+Part of the QA trio with `magento2-linter` (style/static analysis) and `magento2-performance-audit` (runtime/infrastructure). Fix findings using the patterns in `magento2-dev-core`, and re-check API/resolver-specific findings against `magento2-backend-dev`.
+
 ## Vulnerability Categories
 
 ### 1. Injection Vulnerabilities

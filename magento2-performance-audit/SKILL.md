@@ -20,6 +20,10 @@ metadata:
 
 This skill performs a comprehensive audit of Magento 2 performance, infrastructure, and code-level patterns.
 
+## Related Skills
+
+Part of the QA trio with `magento2-linter` and `magento2-security-scan`. Code-level fixes for N+1 queries and heavy constructors follow the patterns in `magento2-dev-core`; async/queue findings often point back to `magento2-backend-dev`.
+
 ## Audit Categories
 
 ### 1. Infrastructure Configuration

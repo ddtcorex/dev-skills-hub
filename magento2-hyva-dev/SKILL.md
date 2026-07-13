@@ -24,6 +24,18 @@ metadata:
 
 Hyvä is a modern Magento 2 frontend framework with dramatically simplified JavaScript and CSS. This skill covers Hyvä-specific patterns.
 
+## Related Skills
+
+Hyvä and Luma (`magento2-frontend-dev`) are mutually exclusive theme stacks — check the theme's `theme.xml` parent (`Hyva/default`/`Hyva/reset` vs `Magento/blank`) and `composer.json` for `hyva-themes/*` packages before assuming either applies. This skill still depends on `magento2-dev-core` for PHP/backend patterns; pair with `govard-magento` for the container/CLI side.
+
+## Detect the project's actual setup first
+
+Hyvä/Tailwind conventions vary a lot by project age — check before applying a pattern:
+
+- **Tailwind version**: v4 uses CSS-based config and `hyva.config.json` design tokens; v2/v3 use `tailwind.config.js`. Check `web/tailwind/package.json`.
+- **CSP build**: `Hyva/default-csp` vs the plain `Hyva/default`/`Hyva/reset` parent in `theme.xml`. Applying CSP-only nonce patterns to a non-CSP theme (or vice versa) wastes effort.
+- **Parent theme**: `Hyva/reset` (built from scratch) vs `Hyva/default` (full starter) changes how much markup/CSS already exists to extend rather than rewrite.
+
 ## Hyvä vs Luma Comparison
 
 | Aspect | Luma | Hyvä |
@@ -36,6 +48,18 @@ Hyvä is a modern Magento 2 frontend framework with dramatically simplified Java
 | Maintenance | Complex | Simple |
 
 ## Theme Structure
+
+### Creating a Child Theme
+
+Always copy `web/` from the parent theme rather than creating it from scratch — it carries the Tailwind config and build tooling the theme needs:
+
+```bash
+mkdir -p app/design/frontend/<Vendor>/<Theme>/web
+cp -r vendor/hyva-themes/magento2-default-theme/web/* app/design/frontend/<Vendor>/<Theme>/web/
+# For a CSP theme, copy from magento2-default-theme-csp instead
+```
+
+Then add `registration.php`, `theme.xml` (parent: `Hyva/default`, `Hyva/reset`, or `Hyva/default-csp`), and `composer.json`, install Tailwind deps and build, then `bin/magento setup:upgrade && bin/magento cache:flush` to pick up the new theme.
 
 ```
 app/design/frontend/Vendor/Theme/
@@ -313,7 +337,83 @@ hyva.alpineInitialized(function() {
 })
 ```
 
+## View Models
+
+Prefer view models (`Hyva\Theme\Model\ViewModelInterface` / Magento's `ArgumentInterface`) over blocks for passing data to templates — they keep PHP logic out of the theme directory (which should hold only templates, layout, `i18n`, and `web/` assets) and in a proper `app/code` module where Magento's DI can autoload the class.
+
+```php
+// app/code/Vendor/Module/ViewModel/ProductInfo.php
+declare(strict_types=1);
+
+namespace Vendor\Module\ViewModel;
+
+use Hyva\Theme\Model\ViewModelInterface;
+use Magento\Framework\View\LayoutInterface;
+
+class ProductInfo implements ViewModelInterface
+{
+    public function __construct(
+        private readonly LayoutInterface $layout
+    ) {}
+
+    public function isInStock(): bool
+    {
+        $product = $this->layout->getBlock('product.info')->getProduct();
+        return $product && $product->isInStock();
+    }
+}
+```
+
+```xml
+<!-- layout/default.xml -->
+<referenceBlock name="product.info">
+    <arguments>
+        <argument name="product_info_view_model" xsi:type="object">Vendor\Module\ViewModel\ProductInfo</argument>
+    </arguments>
+</referenceBlock>
+```
+
+```php
+<?php /** @var \Vendor\Module\ViewModel\ProductInfo $productInfoViewModel */ ?>
+<?php if ($productInfoViewModel->isInStock()): ?>
+    <button class="btn-cart">Add to Cart</button>
+<?php endif; ?>
+```
+
 ## Tailwind CSS
+
+### Tailwind v4 (CSS-based config)
+
+Newer Hyvä themes use Tailwind v4, which drops `tailwind.config.js` for a CSS-based config plus a `hyva.config.json` design-token file — check `web/tailwind/package.json` first, the two configs are not interchangeable.
+
+```css
+/* web/tailwind/tailwind-source.css */
+@import "tailwindcss";
+
+@theme {
+    --color-primary: oklch(46% 0.2 265);
+    --spacing-xs: 0.5rem;
+}
+
+@layer components {
+    .btn-primary {
+        @apply bg-primary text-white px-4 py-2 rounded;
+    }
+}
+```
+
+```json
+// hyva.config.json
+{
+  "tokens": {
+    "src": "hyva.design.tokens.json",
+    "format": "default",
+    "cssSelector": "@theme"
+  }
+}
+```
+
+Generate tokens/sources with `npx hyva-sources` / `npx hyva-tokens` rather than hand-rolling them.
 
 ### Directory Structure
 ```
@@ -449,6 +549,41 @@ function initComponent() {
 <span x-text="product.name"></span>
 ```
 
+## Third-Party Compatibility Modules
+
+A Luma-built third-party extension needs a Hyvä compatibility module to override its templates and JS — check the vendor's GitHub for an existing one (many ship under `hyva-themes/*`) before writing your own.
+
+To build one: create a module that requires the original module, copy only the `.phtml` templates you need to override, replace any jQuery/Knockout JS with CSP-compatible Alpine, and sequence it after both the original module and `Hyva_Theme` in `module.xml`. Then register it so Hyvä actually picks it up:
+
+```xml
+<!-- etc/frontend/di.xml -->
+<type name="Hyva\CompatModuleFallback\Model\CompatModuleRegistry">
+    <arguments>
+        <argument name="compatModules" xsi:type="array">
+            <item name="hyva_vendor_module" xsi:type="array">
+                <item name="original_module" xsi:type="string">Vendor_Module</item>
+                <item name="compat_module" xsi:type="string">Vendor_ModuleHyva</item>
+            </item>
+        </argument>
+    </arguments>
+</type>
+```
+
+Without this `CompatModuleRegistry` registration, Hyvä has no way to know the compat module should override the original's frontend output — the templates get copied but never actually take effect.
+
+## Hyvä UI & CMS Components
+
+- **UI components** (`hyva-themes/hyva-ui`): prebuilt, template-based components installed into a theme — copy `src/*` into the theme, merge any layout XML, and add config to `etc/view.xml`.
+- **CMS components**: custom Hyvä CMS blocks live in a module depending on `Hyva_CmsBase`, declared in a `components.json` schema. Key gotchas: `children` is a root-level property (not a field type), validation lives under `attributes`, and the default-value key is `default_value`, not `default`.
+
+## Responsive Images
+
+Use `Hyva\Theme\ViewModel\Media::getResponsivePictureHtml()` to generate `<picture>` markup instead of hand-rolling `srcset`. Set `loading="eager" fetchpriority="high"` on the LCP image (hero/first product image) and `loading="lazy"` on everything below the fold — getting this backwards is a common, easy-to-miss LCP regression.
+
+## Testing with Playwright
+
+Hyvä pages scatter hidden `x-show` elements around the DOM — always scope message assertions to `#messages`, never a bare `.message.error` selector, or the test will match a hidden element and give a false pass/fail. Prefer `getByRole` / `getByLabel` / scoped `getByText` over raw CSS selectors, and use web-first assertions with a longer timeout to account for Alpine's reactive re-render delay after form submits.
+
 ## Official Hyvä AI Tools
 
 Hyvä provides official AI skills for various assistants:
@@ -481,6 +616,14 @@ bin/magento setup:static-content:deploy -f
 # Check console for CSP errors
 # Test with CSP headers enabled
 ```
+
+## Pitfalls recap
+
+- Hyvä replaces Luma entirely: no RequireJS, Knockout, UI-component JS, jQuery, or LESS in Hyvä templates.
+- Every inline `<script>` needs `$hyvaCsp->registerInlineScript()`, or it silently fails under CSP.
+- Prefer the CSP-safe Alpine pattern (named `Alpine.data()` functions, no inline expression logic like `@click="count++"`) even on a non-CSP build — it's the cleaner default and avoids a rewrite if the project later enables CSP.
+- Rebuild Tailwind (`npm run build`) after any style change, or the new classes won't be in the compiled CSS.
+- Always escape output in `.phtml` with `$escaper`, same as any other Magento template.
 
 ## Usage
 

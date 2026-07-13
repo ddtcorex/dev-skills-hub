@@ -147,17 +147,63 @@ govard diag
 govard diag --fix    # Auto-fix issues
 ```
 
+### Connecting an IDE
+
+Xdebug listens on port `9003`. `govard debug on` only enables the extension inside the container — the IDE side still needs to be configured to listen and map paths, or nothing will connect.
+
+**VSCode** (`.vscode/launch.json`):
+```json
+{
+    "name": "Listen for Govard Xdebug",
+    "type": "php",
+    "request": "launch",
+    "port": 9003,
+    "pathMappings": { "/var/www/html": "${workspaceFolder}" }
+}
+```
+
+**PhpStorm**: Settings → PHP → Debug → set debug port to `9003`; Settings → PHP → Servers → add a server named to match the project, host `<project-domain>.test`, port `443`, debugger `Xdebug`, path mapping `/var/www/html` → project directory.
+
+If it still doesn't connect: check `govard debug status`, confirm the `XDEBUG_SESSION` cookie matches `stack.xdebug_session` in `.govard.yml`, and confirm the IDE is actually listening on 9003 before triggering a request. Disable Xdebug (`govard debug off`) when not actively debugging — it slows down every request noticeably.
+
 ## Configuration
 
+The `.govard.yml` at the project root defines the framework, PHP/Node/DB versions, services, and domain — it's committed to the repo, so **no `govard init` is needed** for an existing project. Config is layered (later overrides earlier), and only `.govard.yml` is writable via `govard config set`:
+
+| File | Purpose |
+|---|---|
+| `.govard.yml` | Team-shared base config (committed) |
+| `.govard.local.yml` (or `.govard/.govard.local.yml`) | Developer-local overrides (gitignored) |
+| `.govard.<env>.yml` | Environment overrides, activated via `GOVARD_ENV=<env>` |
+
+```yaml
+project_name: myproject
+framework: magento2          # magento2, laravel, symfony, wordpress, nextjs, …
+framework_version: 2.4.7
+domain: myproject.test
+stack:
+  php_version: "8.3"
+  node_version: "20"
+  db_version: "10.6"
+  services:
+    web_server: apache        # apache | nginx
+    db: mariadb               # mariadb | mysql | none
+    search: opensearch        # opensearch | elasticsearch | none
+    cache: redis              # redis | valkey | none
+  features:
+    xdebug: false
+    varnish: false
+```
+
 ```bash
-# Auto-config after DB sync
+# Auto-config after DB sync (rebuilds app-level config, e.g. Magento's env.php)
 govard config auto
 
-# Show config
-govard config get system/version
+# Read a value without opening the file
+govard config get stack.php_version
 
-# Interactive config
-govard config set domain local.test
+# Write a value — only .govard.yml is writable this way
+govard config set stack.php_version 8.4
 ```
 
 ## Detailed References

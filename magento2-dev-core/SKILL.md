@@ -20,6 +20,10 @@ metadata:
 
 This skill provides the foundational patterns all Magento 2 developers must follow. It covers architectural decisions, security, and best practices that apply to every part of a Magento project.
 
+## Related Skills
+
+This is the foundation the other Magento 2 skills build on: `magento2-frontend-dev` and `magento2-hyva-dev` cover the two mutually exclusive theme stacks (check the theme's `theme.xml` parent to see which one the project actually uses — Luma vs Hyvä), `magento2-backend-dev` covers APIs/CLI/cron, and `magento2-linter`, `magento2-security-scan`, `magento2-performance-audit` verify the patterns below. In a Govard environment, pair this with `govard-magento` for the container/CLI side.
+
 ## Core Architectural Standards
 
 ### Dependency Injection (DI)
@@ -108,6 +112,8 @@ public function beforeExecute(
 // Instead of around plugins that wrap the entire method
 ```
 
+Plugins only intercept **public** methods, must be stateless, and should not target a module's own classes or data objects. Register them in `di.xml` with an explicit `sortOrder` when order matters. Observer order is *not* guaranteed by contrast — if the sequence matters, use a plugin instead of an observer.
+
 ### Declarative Schema
 
 Use `db_schema.xml` for all database changes. Never modify database directly:
@@ -193,7 +199,12 @@ Always escape output in templates:
 
 // URLs
 <a href="<?= $escaper->escapeUrl($url) ?>">
+
+// CSS values
+<div style="color: <?= $escaper->escapeCss($color) ?>">
 ```
+
+The `Magento2.Security.XssTemplate` PHPCS sniff treats any method whose name contains `html` (e.g. `getLabelHtml()`) as already safe — do not wrap it in `escapeHtml()` again, that double-escapes the output.
 
 ### CSRF Protection
 
@@ -271,6 +282,46 @@ bin/magento cache:flush
     </group>
 </config>
 ```
+
+## Configuration File Reference
+
+Quick lookup for what each `etc/` XML file controls:
+
+| File | Purpose |
+|------|---------|
+| `di.xml` | Dependency injection: preferences, plugins, virtual types |
+| `events.xml` | Observer registration |
+| `crontab.xml` / `cron_groups.xml` | Cron jobs / cron group tuning |
+| `acl.xml` | Admin permission tree |
+| `routes.xml` | Frontend/adminhtml controller routing |
+| `webapi.xml` | REST route declarations |
+| `system.xml` | Admin configuration fields |
+| `config.xml` | Default config values |
+| `indexer.xml` + `mview.xml` | Indexer declaration + its change tracker (enables schedule mode) |
+| `extension_attributes.xml` | Extend a core entity without a preference |
+| `view.xml` | Theme image/gallery sizing, layout config |
+| `queue.xml` / `communication.xml` | Message queue publishers, consumers, topics |
+| `widget.xml` | CMS widget declaration |
+| `email_templates.xml` | Transactional email template registration |
+
+**Rule of thumb**: stale *data* is an indexer problem (check `indexer:status`); stale *output* is a cache problem (`cache:clean`/`cache:flush`). Diagnose in that order rather than assuming a cache bug.
+
+## Anti-Pattern Severity (for code review)
+
+| Anti-pattern | Severity | Why |
+|---|---|---|
+| `ObjectManager::getInstance()` outside factories/proxies/bootstrap | Critical | Breaks testability, hides dependencies, escapes DI interception |
+| `<preference>` on a core class | High | Replaces the class entirely, blocks other extensions, upgrade-fragile |
+| Plugin on `Sales\Model\Order`, `Quote`, `Checkout`, `Payment`, `Customer\Model\Session` | High | High-traffic core classes — re-verify after every Magento upgrade |
+| Raw SQL outside a ResourceModel | Medium | Bypasses events, plugins, indexers, caching |
+| Copy-pasted theme template override | Medium | Silently breaks when Magento changes the original on upgrade — prefer layout XML/view models |
+| Extending `Action`, `AbstractModel`, `Template` base classes | Low | Prefer result interfaces, repositories, view models |
+
+## Testing Conventions
+
+- **Unit tests** (`Test/Unit/`): typed mocks only, never `ObjectManager::getInstance()`, never test private methods via reflection — if a private method needs its own test, it belongs in its own class.
+- **Integration tests** (`Test/Integration/`): use `Bootstrap::getObjectManager()`, load data with `@magentoDataFixture` fixture files rather than creating entities inline, and annotate with `@magentoDbIsolation` so tests don't leak state between each other.
+- **Functional tests**: MFTF (Magento Functional Testing Framework) for full user-journey coverage.
 
 ## References
 

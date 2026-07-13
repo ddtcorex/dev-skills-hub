@@ -20,6 +20,10 @@ metadata:
 
 This skill runs automated code quality checks to verify Magento 2 coding standards compliance.
 
+## Related Skills
+
+Part of the QA trio with `magento2-security-scan` (deeper vulnerability scanning) and `magento2-performance-audit` (runtime/infrastructure checks) — run all three before a release. Fix findings using the patterns in `magento2-dev-core` (or the relevant frontend/backend/Hyvä skill).
+
 ## Prerequisites
 
 Ensure the project has required tools:

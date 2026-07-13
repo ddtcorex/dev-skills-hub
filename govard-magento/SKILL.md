@@ -20,6 +20,10 @@ metadata:
 
 Magento-specific shortcuts and commands for Govard environments.
 
+## Related Skills
+
+This skill covers only container/CLI shortcuts. For module architecture, DI, and security patterns, see `magento2-dev-core` and `magento2-backend-dev`; for code quality and performance checks, see `magento2-linter`, `magento2-security-scan`, and `magento2-performance-audit`.
+
 ## Magento CLI
 
 ```bash
@@ -138,6 +142,26 @@ govard sh -c "bin/magento app:config:dump"
 govard sh -c "bin/magento app:config:import"
 ```
 
+## Multi-Website / Multi-Store Setup
+
+Register additional store domains in `.govard.yml` under `store_domains`, then let Govard wire up the vhost/DNS side:
+
+```yaml
+domain: "primary.test"
+store_domains:
+  brand-b.test:
+    code: base
+    type: website
+```
+
+```bash
+govard domain add brand-b.test
+govard config auto
+govard sh -c "bin/magento cache:flush"
+```
+
+Store codes are also selectable via URL path (`/fr/`, `/admin/`) without a separate domain — reserve `store_domains` for genuinely separate hostnames/websites.
+
 ## Redis Cache
 
 ```bash
@@ -179,6 +203,18 @@ govard sh -c "tail -f var/log/debug.log"
 # Custom module log
 govard sh -c "tail -f var/log/my-module.log"
 ```
+
+## Common Issues & Solutions
+
+| Symptom | Fix |
+|---|---|
+| "There are no commands defined" after pulling code | `govard sh -c "bin/magento setup:di:compile"` |
+| Static assets not updating | `govard sh -c "bin/magento setup:static-content:deploy -f"` + `cache:flush`, then hard-refresh the browser |
+| Database connection refused | `govard ps` (is the DB container up?), `govard logs db`, then `govard down && govard up` if needed |
+| Container won't start | `govard doctor`, then `govard logs` |
+| Xdebug not connecting | `govard debug on`, confirm the IDE is listening on port 9003, check the `XDEBUG_SESSION` cookie matches `.govard.yml` — see `govard-toolbox` for the full IDE setup |
+
+Template-only changes don't need `setup:di:compile` — only `setup:static-content:deploy`. Recompiling DI on every template edit wastes time for no benefit.
 
 ## Common Workflows
 

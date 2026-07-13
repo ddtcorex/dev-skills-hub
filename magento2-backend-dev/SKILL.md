@@ -18,6 +18,10 @@ metadata:
 
 This skill covers API development (REST, SOAP, GraphQL), CLI commands, cron jobs, and message queues.
 
+## Related Skills
+
+Pairs with `magento2-security-scan` when the API/resolver you're building touches authentication, ACL, or user input, and with `magento2-performance-audit` for queue/consumer and N+1 concerns once the endpoint is built. In a Govard environment, use `govard-magento` for the CLI/container side (`bin/magento`, cache, indexers).
+
 ## REST API
 
 ### Service Contract Structure
@@ -77,6 +81,8 @@ interface ProductInterface extends ExtensibleDataInterface
     // ... other getters/setters
 }
 ```
+
+**PHPDoc is not optional here**: the REST serializer reads `@param`/`@return`/`@throws` PHPDoc on `Api/` interfaces via reflection to build the request/response schema — a type hint alone is not enough for the WebAPI framework to expose the field correctly.
 
 ### Repository Implementation
 
@@ -283,6 +289,8 @@ class ProductList implements ResolverInterface
 }
 ```
 
+For cacheable GraphQL types, implement `IdentityInterface` on the resolver (or a dedicated identity provider) so Magento can tag the response for full-page cache invalidation — without it, `@cache(cacheable: true)` has nothing to key on and the type is effectively never cached correctly.
+
 ## CLI Commands
 
 ### Command Class
@@ -396,6 +404,8 @@ class SyncCommand extends Command
 }
 ```
 
+If the command touches store-scoped config, catalog, or anything area-aware, set the area code explicitly before use: `$this->state->setAreaCode(Area::AREA_ADMINHTML)` (or `AREA_FRONTEND`/`AREA_GLOBAL`) — a bare CLI command defaults to no area, and area-dependent services throw a `LocalizedException` otherwise.
+
 ## Cron Jobs
 
 ### Cron Class
@@ -474,6 +484,8 @@ class CleanupExpired
 
 ## Message Queue
 
+Not every project needs all four queue XML files — `communication.xml` (topic schema) is the one that's always required. Add `queue_topology.xml`, `queue_publisher.xml`, `queue_consumer.xml` only for what the use case actually needs (e.g. just `queue_publisher.xml` when publishing to a queue a third party already owns).
+
 ### Publisher Configuration
 
 ```xml
@@ -543,6 +555,15 @@ interface ProductUpdateInterface
               consumer="Vendor\Module\Model\Consumer\ProductUpdateConsumer"/>
 </config>
 ```
+
+## Pitfalls recap
+
+- The `resource ref` in `webapi.xml` must match an actual `id` declared in `acl.xml` — a typo here fails silently with a 403, not a config error.
+- Always throw `NoSuchEntityException` (not return `null`) when a repository can't find an entity — the WebAPI framework maps it to a proper 404.
+- A configured consumer (`queue.xml`) does nothing on its own — it must actually be running as a process via cron or a supervisor (`bin/magento queue:consumers:start`), or messages just pile up in the `queue_message` tables. See `magento2-performance-audit`.
+- GraphQL resolvers get no automatic ACL check — validate the customer/admin context explicitly inside `resolve()` if the field exposes anything sensitive.
+
+`cron_schedule` rows move through `pending` → `running` → `success`/`error`/`missed`. Never `TRUNCATE cron_schedule` to "fix" a stuck cron — query it (`WHERE status IN ('error','missed')`) to diagnose the actual cause instead, since truncating destroys the run history you'd need to find it.
 
 ## Verification
 
