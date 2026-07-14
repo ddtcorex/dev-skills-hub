@@ -1,36 +1,47 @@
 # AI Skills Hub
 
-A centralized, production-grade flat repository designed to host and organize custom AI Skills for multiple AI Agents (Claude Code, OpenCode, VS Code Codex, GitHub Copilot).
+A Claude Code plugin bundling Magento 2 and Govard skills. Every skill follows the
+open [Agent Skills standard](https://agentskills.io) (a `SKILL.md` file with
+`name`/`description` frontmatter), which Claude Code, OpenCode, Codex CLI, and
+GitHub Copilot all understand — see [Installation](#-installation) for how to wire
+this repo's `skills/` folder into each one, since they don't all scan the same
+directory name.
 
 This repository is built to be **fully extensible**, allowing you to continuously add new tech stacks, tools, and domain-specific skills over time.
 
 ---
 
-## 📂 Flat Directory Structure
+## 📂 Directory Structure
 
-All skill directories are located at the root level of the repository for direct auto-discovery by AI Agents.
+Every skill lives under `skills/<name>/SKILL.md` — this is the layout Claude Code's
+plugin loader requires, and it's the single source of truth (no other copy exists
+anywhere else in the repo).
 
 ```
 ai-skills/
 ├── README.md                        # This file (Global documentation and guide)
+├── .claude-plugin/
+│   ├── plugin.json                  # Claude Code plugin manifest
+│   └── marketplace.json             # Self-listing marketplace (source: "./")
 │
-├── 📦 CORE STANDARDS & ARCHITECTURES (Foundation patterns)
-│   └── magento2-dev-core/           # Magento 2 core guidelines (DI, Repositories, Security)
-│
-├── 🛠️ QUALITY ASSURANCE & AUDITING (Linting and static analysis)
-│   ├── magento2-linter/             # PHPCS, PHPStan static checking rules
-│   ├── magento2-performance-audit/  # Web vitals, infrastructure and DB profiling
-│   └── magento2-security-scan/      # Static vulnerability code scanning
-│
-├── 🎨 FRONTEND & BACKEND FRAMEWORKS (Domain-specific code)
-│   ├── magento2-hyva-dev/           # Alpine.js, Tailwind CSS, CSP payment pages
-│   ├── magento2-frontend-dev/       # Luma Knockout.js, LESS, RequireJS
-│   └── magento2-backend-dev/        # REST, GraphQL resolvers, Cron, Queues
-│
-└── 🔧 DEV ENVIRONMENT & CLI TOOLS (Toolchain orchestration)
-    ├── govard-toolbox/              # Base container orchestrator toolbox
-    ├── govard-magento/              # Magento-specific dev env commands
-    └── govard-laravel/              # Laravel-specific dev env commands
+└── skills/
+    ├── 📦 CORE STANDARDS & ARCHITECTURES (Foundation patterns)
+    │   └── magento2-dev-core/           # Magento 2 core guidelines (DI, Repositories, Security)
+    │
+    ├── 🛠️ QUALITY ASSURANCE & AUDITING (Linting and static analysis)
+    │   ├── magento2-linter/             # PHPCS, PHPStan static checking rules
+    │   ├── magento2-performance-audit/  # Web vitals, infrastructure and DB profiling
+    │   └── magento2-security-scan/      # Static vulnerability code scanning
+    │
+    ├── 🎨 FRONTEND & BACKEND FRAMEWORKS (Domain-specific code)
+    │   ├── magento2-hyva-dev/           # Alpine.js, Tailwind CSS, CSP payment pages
+    │   ├── magento2-frontend-dev/       # Luma Knockout.js, LESS, RequireJS
+    │   └── magento2-backend-dev/        # REST, GraphQL resolvers, Cron, Queues
+    │
+    └── 🔧 DEV ENVIRONMENT & CLI TOOLS (Toolchain orchestration)
+        ├── govard-toolbox/              # Base container orchestrator toolbox
+        ├── govard-magento/              # Magento-specific dev env commands
+        └── govard-laravel/              # Laravel-specific dev env commands
 ```
 
 ---
@@ -39,9 +50,9 @@ ai-skills/
 
 You can easily expand this hub with any new programming language, framework, or utility domain (e.g., React, Python, Docker, CI/CD, AWS, etc.).
 
-### Step 1: Create a Flat Directory
-Create a folder directly at the root of the project using kebab-case:
-`[domain]-[tool/stack]-[purpose]` (e.g., `react-nextjs-tailwind`, `docker-ops-deployment`).
+### Step 1: Create the Skill Folder
+Create `skills/[domain]-[tool/stack]-[purpose]/` using kebab-case
+(e.g., `skills/react-nextjs-tailwind/`, `skills/docker-ops-deployment/`).
 
 ### Step 2: Create a `SKILL.md` File
 Every skill folder **must** contain a `SKILL.md` file at its root with valid YAML frontmatter:
@@ -71,41 +82,88 @@ Provide code templates, standards, and typical commands.
 Step-by-step commands to verify output works properly.
 ```
 
+> `compatibility`, `depends`, and `metadata` are custom conventions for cross-tool
+> sharing — Claude Code's plugin schema ignores them (only `name` and
+> `description` are required), so they're safe to keep.
+
 ### Step 3: Add to `README.md`
-Add your new skill to the directories list above and update the compatibility matrix below.
+Add your new skill to the directory tree above and the compatibility matrix below.
 
 ---
 
 ## 🤖 Agent Compatibility Matrix
 
-| Skill | Claude Code | VS Code Codex | OpenCode | GitHub Copilot |
+Content-format compatible with all four out of the box — actually loading a skill
+still requires it to sit in the directory name that tool scans (see
+[Installation](#-installation)).
+
+| Skill | Claude Code | Codex CLI | OpenCode | GitHub Copilot |
 |-------|-------------|---------------|----------|----------------|
 | **Core & Standards** | | | | |
-| [magento2-dev-core](magento2-dev-core/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-dev-core](skills/magento2-dev-core/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
 | **Linting & Auditing** | | | | |
-| [magento2-linter](magento2-linter/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [magento2-performance-audit](magento2-performance-audit/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [magento2-security-scan](magento2-security-scan/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-linter](skills/magento2-linter/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-performance-audit](skills/magento2-performance-audit/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-security-scan](skills/magento2-security-scan/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
 | **Frameworks** | | | | |
-| [magento2-hyva-dev](magento2-hyva-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [magento2-frontend-dev](magento2-frontend-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [magento2-backend-dev](magento2-backend-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-hyva-dev](skills/magento2-hyva-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-frontend-dev](skills/magento2-frontend-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [magento2-backend-dev](skills/magento2-backend-dev/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
 | **Toolchains** | | | | |
-| [govard-toolbox](govard-toolbox/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [govard-magento](govard-magento/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
-| [govard-laravel](govard-laravel/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [govard-toolbox](skills/govard-toolbox/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [govard-magento](skills/govard-magento/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
+| [govard-laravel](skills/govard-laravel/SKILL.md) | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## 💾 Installation & Auto-Discovery
+## 💾 Installation
 
-AI Agents naturally scan the root level of folders in your workspace. Since this repository follows a **strict flat structure**, pointing an agent to this root workspace is sufficient for them to index and auto-discover all custom capabilities.
+Every tool recognizes the same `SKILL.md` file, but each one scans its **own**
+directory name — none of them can be pointed at an arbitrary folder like this
+repo's bare `skills/`, so pick the option(s) below for the tools you use.
 
-### Global Installation (Claude Code)
-To register a skill globally so it triggers in any directory:
-```bash
-cp -r [skill-folder] ~/.claude/skills/
+### Claude Code — as a plugin (recommended)
 ```
+/plugin marketplace add ddtcorex/ai-skills
+/plugin install ai-skills@ai-skills
+```
+Updates: `/plugin marketplace update ai-skills`.
+
+### Direct use in your own project — one-line install/update
+
+Each tool scans its own directory name, so `install.sh` clones this repo once
+into `~/.ai-skills` and links each skill into every tool's expected path:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ddtcorex/ai-skills/master/install.sh | bash
+```
+
+Run interactively, it asks for scope (`project` = current directory, `personal`
+= your home directory, available in every project) and which tools to target.
+Re-running the exact same command later **is** the update — it re-pulls the
+cache and re-links. Common flags for non-interactive/CI use:
+
+```bash
+curl -fsSL .../install.sh | bash -s -- -y --scope project --target claude,codex \
+  --skills magento2-dev-core,govard-toolbox --mode copy
+curl -fsSL .../install.sh | bash -s -- -y --uninstall
+```
+
+| Tool | Scans (project scope) | Scans (personal scope) |
+|------|------------------------|--------------------------|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| OpenCode | `.opencode/skills/` (also checks `.claude/skills/`, `.agents/skills/`) | `~/.config/opencode/skills/` |
+| Codex CLI | `.agents/skills/` **only** | `~/.agents/skills/` |
+| GitHub Copilot / VS Code | `.github/skills/` (also checks `.claude/skills/`, `.agents/skills/`, or a custom `chat.agentSkillsLocations` path) | `~/.copilot/skills/` |
+
+`install.sh` creates each tool's own dedicated path (symlinked to the
+`~/.ai-skills` cache by default, or real copies with `--mode copy`) rather than
+relying on the secondary paths some tools also check, so `ls` in your project
+shows exactly which tools have a copy.
+
+> GitHub Copilot's older "Skillsets" feature (for Copilot Extensions — API tool
+> integrations) is unrelated to the Agent Skills folders above; don't confuse the
+> two when searching Copilot's docs.
 
 ---
 

@@ -1,0 +1,37 @@
+{
+  "name": "ai-skills",
+  "owner": {
+    "name": "Toan (Kai) Do",
+    "email": "kaido4492@gmail.com"
+  },
+  "metadata": {
+    "description": "Magento 2 development, QA, performance, security, and Govard dev-environment orchestration skills",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-skills",
+      "source": "./",
+      "description": "Magento 2 development, QA, performance and security skills, plus Govard dev-environment orchestration for Magento and Laravel",
+      "version": "0.1.0",
+      "author": {
+        "name": "Toan (Kai) Do",
+        "email": "kaido4492@gmail.com"
+      },
+      "homepage": "https://github.com/ddtcorex/ai-skills",
+      "keywords": [
+        "magento2",
+        "php",
+        "hyva",
+        "knockout",
+        "performance-audit",
+        "security-scan",
+        "linting",
+        "govard",
+        "laravel",
+        "devops"
+      ],
+      "category": "development"
+    }
+  ]
+}
