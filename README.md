@@ -1,13 +1,15 @@
-# AI Skills Hub
+# AI Development Skills Hub
 
-A Claude Code plugin bundling Magento 2 and Govard skills. Every skill follows the
-open [Agent Skills standard](https://agentskills.io) (a `SKILL.md` file with
-`name`/`description` frontmatter), which Claude Code, OpenCode, Codex CLI, and
-GitHub Copilot all understand — see [Installation](#-installation) for how to wire
-this repo's `skills/` folder into each one, since they don't all scan the same
-directory name.
+An extensible hub of AI development skills, packaged as a Claude Code plugin --
+currently Magento 2 (architecture, linting, performance, security) and Govard
+dev-environment orchestration for Magento and Laravel, with more tech stacks
+added over time.
 
-This repository is built to be **fully extensible**, allowing you to continuously add new tech stacks, tools, and domain-specific skills over time.
+Every skill follows the open [Agent Skills standard](https://agentskills.io) (a
+`SKILL.md` file with `name`/`description` frontmatter), which Claude Code,
+OpenCode, Codex CLI, and GitHub Copilot all understand — see
+[Installation](#-installation) for how to wire this repo's `skills/` folder into
+each one, since they don't all scan the same directory name.
 
 ---
 
@@ -18,7 +20,7 @@ plugin loader requires, and it's the single source of truth (no other copy exist
 anywhere else in the repo).
 
 ```
-ai-skills/
+dev-skills-hub/
 ├── README.md                        # This file (Global documentation and guide)
 ├── .claude-plugin/
 │   ├── plugin.json                  # Claude Code plugin manifest
@@ -124,18 +126,18 @@ repo's bare `skills/`, so pick the option(s) below for the tools you use.
 
 ### Claude Code — as a plugin (recommended)
 ```
-/plugin marketplace add ddtcorex/ai-skills
-/plugin install ai-skills@ai-skills
+/plugin marketplace add ddtcorex/dev-skills-hub
+/plugin install dev-skills-hub@dev-skills-hub
 ```
-Updates: `/plugin marketplace update ai-skills`.
+Updates: `/plugin marketplace update dev-skills-hub`.
 
 ### Direct use in your own project — one-line install/update
 
 Each tool scans its own directory name, so `install.sh` clones this repo once
-into `~/.ai-skills` and links each skill into every tool's expected path:
+into `~/.dev-skills-hub` and links each skill into every tool's expected path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ddtcorex/ai-skills/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ddtcorex/dev-skills-hub/master/install.sh | bash
 ```
 
 Run interactively, it asks for scope (`project` = current directory, `personal`
@@ -157,7 +159,7 @@ curl -fsSL .../install.sh | bash -s -- -y --uninstall
 | GitHub Copilot / VS Code | `.github/skills/` (also checks `.claude/skills/`, `.agents/skills/`, or a custom `chat.agentSkillsLocations` path) | `~/.copilot/skills/` |
 
 `install.sh` creates each tool's own dedicated path (symlinked to the
-`~/.ai-skills` cache by default, or real copies with `--mode copy`) rather than
+`~/.dev-skills-hub` cache by default, or real copies with `--mode copy`) rather than
 relying on the secondary paths some tools also check, so `ls` in your project
 shows exactly which tools have a copy.
 

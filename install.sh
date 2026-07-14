@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ai-skills one-line installer / updater.
+# dev-skills-hub one-line installer / updater.
 #
-#   curl -fsSL https://raw.githubusercontent.com/ddtcorex/ai-skills/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ddtcorex/dev-skills-hub/master/install.sh | bash
 #
 # Re-running this script (locally, or via the same one-liner) updates the
 # cached clone and re-links everything -- that IS the update path, there is
@@ -16,8 +16,8 @@
 #   copilot   -> .github/skills          (~/.copilot/skills)
 set -euo pipefail
 
-REPO_URL="https://github.com/ddtcorex/ai-skills.git"
-CACHE_DIR="${AI_SKILLS_HOME:-$HOME/.ai-skills}"
+REPO_URL="https://github.com/ddtcorex/dev-skills-hub.git"
+CACHE_DIR="${DEV_SKILLS_HUB_HOME:-$HOME/.dev-skills-hub}"
 ALL_TOOLS="claude opencode codex copilot"
 
 scope="project"
@@ -41,8 +41,8 @@ Usage: install.sh [options]
   -y, --yes                   Never prompt; use defaults/flags only
   -h, --help                  Show this help
 
-Environment variables mirror the flags: AI_SKILLS_HOME, AI_SKILLS_SCOPE,
-AI_SKILLS_TARGET, AI_SKILLS_SKILLS, AI_SKILLS_MODE.
+Environment variables mirror the flags: DEV_SKILLS_HUB_HOME, DEV_SKILLS_HUB_SCOPE,
+DEV_SKILLS_HUB_TARGET, DEV_SKILLS_HUB_SKILLS, DEV_SKILLS_HUB_MODE.
 EOF
 }
 
@@ -59,10 +59,10 @@ while [ $# -gt 0 ]; do
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
   esac
 done
-scope="${AI_SKILLS_SCOPE:-$scope}"
-targets="${AI_SKILLS_TARGET:-$targets}"
-skills="${AI_SKILLS_SKILLS:-$skills}"
-mode="${AI_SKILLS_MODE:-$mode}"
+scope="${DEV_SKILLS_HUB_SCOPE:-$scope}"
+targets="${DEV_SKILLS_HUB_TARGET:-$targets}"
+skills="${DEV_SKILLS_HUB_SKILLS:-$skills}"
+mode="${DEV_SKILLS_HUB_MODE:-$mode}"
 
 # TTY-safe prompt: when piped via `curl | bash`, stdin is the script itself,
 # not the user, so fall back to reading straight from /dev/tty (same trick
@@ -90,7 +90,7 @@ if [ -d "$CACHE_DIR/.git" ]; then
   echo "Updating $CACHE_DIR ..." >&2
   git -C "$CACHE_DIR" pull --ff-only
 else
-  echo "Cloning ai-skills into $CACHE_DIR ..." >&2
+  echo "Cloning dev-skills-hub into $CACHE_DIR ..." >&2
   git clone --depth 1 "$REPO_URL" "$CACHE_DIR"
 fi
 

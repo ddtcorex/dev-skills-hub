@@ -1,24 +1,24 @@
 {
-  "name": "ai-skills",
+  "name": "dev-skills-hub",
   "owner": {
-    "name": "Toan (Kai) Do",
+    "name": "DDTCoreX",
     "email": "kaido4492@gmail.com"
   },
   "metadata": {
-    "description": "Magento 2 development, QA, performance, security, and Govard dev-environment orchestration skills",
+    "description": "An extensible hub of AI development skills -- currently Magento 2 and Govard dev-environment orchestration, with more stacks added over time",
     "version": "0.1.0"
   },
   "plugins": [
     {
-      "name": "ai-skills",
+      "name": "dev-skills-hub",
       "source": "./",
-      "description": "Magento 2 development, QA, performance and security skills, plus Govard dev-environment orchestration for Magento and Laravel",
+      "description": "An extensible hub of AI development skills -- currently Magento 2 (architecture, linting, performance, security) and Govard dev-environment orchestration, with more stacks over time",
       "version": "0.1.0",
       "author": {
-        "name": "Toan (Kai) Do",
+        "name": "DDTCoreX",
         "email": "kaido4492@gmail.com"
       },
-      "homepage": "https://github.com/ddtcorex/ai-skills",
+      "homepage": "https://github.com/ddtcorex/dev-skills-hub",
       "keywords": [
         "magento2",
         "php",
