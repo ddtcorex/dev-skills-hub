@@ -1,0 +1,15 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# Personal Claude Code plugin settings (see plugin-settings convention)
+.claude/*.local.md
+
+# Force-track CLAUDE.md even if a global (~/.config/git/ignore) rule excludes it
+!CLAUDE.md
