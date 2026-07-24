@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-07-24
+
+### Added
+- `CLAUDE.md` documenting the repo's architecture, plugin/marketplace structure,
+  `install.sh` design, and release checklist for future contributors.
+- `.gitignore` for common local/editor artifacts.
+
+### Changed
+- Strengthened cross-skill dependency signaling: all 8 skills declaring
+  `depends:` (`govard-laravel`, `govard-magento`, `magento2-backend-dev`,
+  `magento2-frontend-dev`, `magento2-hyva-dev`, `magento2-linter`,
+  `magento2-performance-audit`, `magento2-security-scan`) now state their
+  prerequisite as an explicit `REQUIRED BACKGROUND` instruction in the skill
+  body, since Claude Code's schema doesn't act on `depends:` frontmatter alone.
+- Removed `Usage`/"Trigger phrases" sections that duplicated each skill's
+  frontmatter `description` verbatim; kept the one genuine step-by-step
+  workflow (renamed to `Workflow`) in `magento2-performance-audit`.
+
 ## [0.1.0] - 2026-07-14
 
 ### Added
