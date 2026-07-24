@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-07-24
+
+### Fixed
+- `magento2-performance-audit`: the PDF export example used `--print-to-pdf-no-header`, a flag
+  that doesn't exist in current Chrome and is silently ignored — the real one is
+  `--no-pdf-header-footer`. Caught by regenerating the report PDF and finding Chrome's injected
+  timestamp/title/URL/page-number header and footer still present; corrected the command and
+  added a verification step (`pdftotext` the first page, check for a stray date/URL line) so a
+  wrong/renamed flag doesn't silently pass again.
+
 ## [0.2.2] - 2026-07-24
 
 ### Added

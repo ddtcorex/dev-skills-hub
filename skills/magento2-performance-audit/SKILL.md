@@ -639,10 +639,10 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 >
 > **A PDF copy can be produced from that same rendered HTML** — either the person viewing a published artifact link uses the browser's own Print → Save as PDF, or, from the CLI, headless Chrome renders it identically since the page is self-contained (inline CSS, no external fonts/CDN calls to fail mid-render):
 > ```bash
-> google-chrome --headless --disable-gpu --no-sandbox \
->   --print-to-pdf="report.pdf" --print-to-pdf-no-header \
->   "file://$(pwd)/report.html"
+> google-chrome --headless --disable-gpu --no-sandbox --no-pdf-header-footer \
+>   --print-to-pdf="report.pdf" "file://$(pwd)/report.html"
 > ```
+> The flag that suppresses Chrome's own injected header/footer (timestamp, page title, URL, page number) is `--no-pdf-header-footer` — a similarly-named `--print-to-pdf-no-header` does not exist in current Chrome and is silently ignored, so verify the output (e.g. `pdftotext -f 1 -l 1 report.pdf -` and check for a stray date/URL line) rather than assuming the flag took effect.
 > This is a rendering convenience, not a substitute for keeping the markdown/HTML source — don't generate a PDF as the only copy of a report.
 
 ```markdown
