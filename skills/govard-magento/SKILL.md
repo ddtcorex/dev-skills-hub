@@ -22,6 +22,8 @@ Magento-specific shortcuts and commands for Govard environments.
 
 ## Related Skills
 
+**REQUIRED BACKGROUND:** Load `govard-toolbox` first — this skill only covers Magento-specific shortcuts layered on top of Govard's base environment commands.
+
 This skill covers only container/CLI shortcuts. For module architecture, DI, and security patterns, see `magento2-dev-core` and `magento2-backend-dev`; for code quality and performance checks, see `magento2-linter`, `magento2-security-scan`, and `magento2-performance-audit`.
 
 ## Magento CLI

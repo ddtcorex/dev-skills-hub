@@ -20,6 +20,8 @@ This skill covers API development (REST, SOAP, GraphQL), CLI commands, cron jobs
 
 ## Related Skills
 
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — it defines the DI, repository, and security patterns (constructor injection, service contracts, escaping, discouraged functions) this skill assumes without repeating.
+
 Pairs with `magento2-security-scan` when the API/resolver you're building touches authentication, ACL, or user input, and with `magento2-performance-audit` for queue/consumer and N+1 concerns once the endpoint is built. In a Govard environment, use `govard-magento` for the CLI/container side (`bin/magento`, cache, indexers).
 
 ## REST API
@@ -591,13 +593,3 @@ curl -X GET "http://localhost/V1/vendor/product/1" \
 # Clear API cache
 bin/magento cache:clean config
 ```
-
-## Usage
-
-**Trigger phrases:**
-- "Create REST API endpoint"
-- "Build GraphQL resolver"
-- "Add CLI command"
-- "Setup cron job"
-- "Configure message queue"
-- "Create SOAP service"

@@ -22,6 +22,8 @@ This skill runs automated code quality checks to verify Magento 2 coding standar
 
 ## Related Skills
 
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — this skill validates code against the coding/security standards that skill defines, and its patterns are what you fix findings with.
+
 Part of the QA trio with `magento2-security-scan` (deeper vulnerability scanning) and `magento2-performance-audit` (runtime/infrastructure checks) — run all three before a release. Fix findings using the patterns in `magento2-dev-core` (or the relevant frontend/backend/Hyvä skill).
 
 ## Prerequisites

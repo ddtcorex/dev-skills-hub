@@ -26,7 +26,9 @@ Hyvä is a modern Magento 2 frontend framework with dramatically simplified Java
 
 ## Related Skills
 
-Hyvä and Luma (`magento2-frontend-dev`) are mutually exclusive theme stacks — check the theme's `theme.xml` parent (`Hyva/default`/`Hyva/reset` vs `Magento/blank`) and `composer.json` for `hyva-themes/*` packages before assuming either applies. This skill still depends on `magento2-dev-core` for PHP/backend patterns; pair with `govard-magento` for the container/CLI side.
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — it defines the PHP/backend patterns (DI, escaping, repositories) this skill assumes for any ViewModel or backend code behind a Hyvä template.
+
+Hyvä and Luma (`magento2-frontend-dev`) are mutually exclusive theme stacks — check the theme's `theme.xml` parent (`Hyva/default`/`Hyva/reset` vs `Magento/blank`) and `composer.json` for `hyva-themes/*` packages before assuming either applies. Pair with `govard-magento` for the container/CLI side.
 
 ## Detect the project's actual setup first
 
@@ -624,13 +626,3 @@ bin/magento setup:static-content:deploy -f
 - Prefer the CSP-safe Alpine pattern (named `Alpine.data()` functions, no inline expression logic like `@click="count++"`) even on a non-CSP build — it's the cleaner default and avoids a rewrite if the project later enables CSP.
 - Rebuild Tailwind (`npm run build`) after any style change, or the new classes won't be in the compiled CSS.
 - Always escape output in `.phtml` with `$escaper`, same as any other Magento template.
-
-## Usage
-
-**Trigger phrases:**
-- "Create Hyvä component"
-- "Build Alpine.js for Hyvä"
-- "Make CSP-compliant"
-- "Convert to Hyvä"
-- "Tailwind styling"
-- "Hyvä checkout customization"

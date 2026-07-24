@@ -20,6 +20,10 @@ metadata:
 
 Laravel-specific shortcuts and commands for Govard environments.
 
+## Related Skills
+
+**REQUIRED BACKGROUND:** Load `govard-toolbox` first — this skill only covers Laravel-specific shortcuts layered on top of Govard's base environment commands (`govard up`, `govard sh`, `govard db`, remote sync, Xdebug setup).
+
 ## Artisan Commands
 
 ```bash

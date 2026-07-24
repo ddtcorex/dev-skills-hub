@@ -22,7 +22,9 @@ This skill performs a comprehensive audit of Magento 2 performance, infrastructu
 
 ## Related Skills
 
-Part of the QA trio with `magento2-linter` and `magento2-security-scan`. Code-level fixes for N+1 queries and heavy constructors follow the patterns in `magento2-dev-core`; async/queue findings often point back to `magento2-backend-dev`.
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — code-level fixes for N+1 queries and heavy constructors follow the patterns it defines.
+
+Part of the QA trio with `magento2-linter` and `magento2-security-scan`. Async/queue findings often point back to `magento2-backend-dev`.
 
 ## Audit Categories
 
@@ -419,7 +421,7 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 3. ...
 ```
 
-## Usage
+## Workflow
 
 **When invoked:**
 1. Execute infrastructure checks (env.php, mode, cache status) — first confirm whether the target is local dev, staging, or production, since expectations differ (see note under Infrastructure Configuration)
@@ -428,10 +430,3 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 4. Run Lighthouse / Core Web Vitals audit (if URL provided)
 5. Scan for code-level performance patterns
 6. Generate report with recommendations, prioritizing any finding that repeats across all 3 page types (site-wide impact) over page-specific ones
-
-**Trigger phrases:**
-- "Audit performance"
-- "Check configuration"
-- "Run performance test"
-- "Analyze database queries"
-- "Core Web Vitals report"

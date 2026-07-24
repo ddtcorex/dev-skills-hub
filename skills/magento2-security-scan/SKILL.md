@@ -21,7 +21,9 @@ This skill performs security scanning for vulnerabilities, misconfigurations, an
 
 ## Related Skills
 
-Part of the QA trio with `magento2-linter` (style/static analysis) and `magento2-performance-audit` (runtime/infrastructure). Fix findings using the patterns in `magento2-dev-core`, and re-check API/resolver-specific findings against `magento2-backend-dev`.
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — this skill scans for violations of the security patterns it defines (escaping, discouraged functions, ObjectManager misuse), and its patterns are what you fix findings with.
+
+Part of the QA trio with `magento2-linter` (style/static analysis) and `magento2-performance-audit` (runtime/infrastructure). Re-check API/resolver-specific findings against `magento2-backend-dev`.
 
 ## Vulnerability Categories
 
@@ -206,12 +208,3 @@ grep -r "eval" app/code/Vendor/Module --include="*.php"
 - [ ] CSP no unsafe-eval on checkout
 - [ ] No inline scripts in payment forms
 ```
-
-## Usage
-
-**When to use:**
-- "Security audit"
-- "Check for vulnerabilities"
-- "PCI compliance review"
-- "Before production deploy"
-- "After adding payment functionality"

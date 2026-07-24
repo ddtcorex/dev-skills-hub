@@ -22,6 +22,8 @@ This skill covers Luma/Blank theme development, Knockout.js, RequireJS, LESS CSS
 
 ## Related Skills
 
+**REQUIRED BACKGROUND:** Load `magento2-dev-core` first — it defines the escaping (`escapeHtml`/`escapeHtmlAttr`/`escapeJs`) and backend patterns this skill's templates and view models rely on.
+
 This skill targets Luma/Blank-derived themes. If the project's `theme.xml` parent is `Hyva/default` or `Hyva/reset` (or `composer.json` requires `hyva-themes/*`), use `magento2-hyva-dev` instead — the two frontend stacks are mutually exclusive and share almost no code patterns.
 
 ## Theme Structure
@@ -469,13 +471,3 @@ bin/magento config:set dev/js/merge_files 0
 - A `referenceBlock` marked `cacheable="false"` blocks full-page caching for the whole containing page, not just that block — use `esi:inline` or a shorter `cache_lifetime` instead where possible.
 - Clear the right cache after a change: `layout`/`block_html` for layout XML, `full_page` for FPC-visible content, and always redeploy static content (`setup:static-content:deploy`) after CSS/JS changes in production mode.
 - RequireJS module paths are case-sensitive and must match the `require-config.js` map exactly, or the module silently fails to resolve.
-
-## Usage
-
-**Trigger phrases:**
-- "Create Knockout component"
-- "Add RequireJS module"
-- "Customize LESS styles"
-- "Modify layout XML"
-- "Add UI Component"
-- "Style checkout"
