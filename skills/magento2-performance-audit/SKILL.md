@@ -6,6 +6,8 @@ description: |
   - "Check server configuration", "verify Redis/Varnish setup"
   - "Analyze database queries", "find N+1 query issues"
   - "Review indexer configuration", "check cron health"
+  - "Debug cache flush", "why does full_page cache keep flushing", "trace FPC invalidation"
+  - "Too many ajax requests", "customer data section reload storm", "crawler overloading server"
 
   This skill runs automated checks against Adobe Commerce Best Practices. DEPENDENT on magento2-dev-core
   for code-level performance patterns.
@@ -53,6 +55,8 @@ govard sh -c "bin/magento cache:status"
 # block_html        1         1
 # full_page         1         1
 ```
+
+> If `full_page` cache is flushing far more often than page saves/deploys would explain, see **Cache Invalidation Efficiency Audit** below — Magento's own entity-save invalidation is narrowly scoped by design; unexplained broad/frequent flushes are almost always custom observer or plugin code.
 
 ### 3. Indexer Configuration
 
@@ -271,6 +275,166 @@ Don't leave a target environment with caches disabled and full query logging on 
 - **Not every slow section benefits from the caches you just disabled.** `layout` cache only skips re-parsing/merging layout XML — it does NOT skip instantiating the PHP block objects for every declared block (that happens fresh on every request regardless of cache, since live objects can't be cached across requests). If a page's time is dominated by layout *generation* rather than block *rendering*, re-enabling `layout`/`block_html` cache won't fix it — the real lever is reducing how many blocks/modules contribute to that page's layout.
 - **A query shape repeated with near-identical counts across all 3 page types** (not just one) is a strong signal it comes from a globally-rendered block (header/footer/cart-drawer widget), not something page-specific — prioritize fixing that over a page-specific N+1, since it's paid on every single page view site-wide.
 
+## Cache Invalidation Efficiency Audit
+
+Magento's default invalidation on entity save (product, category, CMS block/page, etc.) is already narrowly scoped — `getIdentities()` on the saved entity returns a small set of cache tags, and only pages/blocks carrying those tags get cleared. The problem this section targets is **custom code** (an observer, a plugin, a cron job, a "just flush everything to be safe" habit) that widens or duplicates that invalidation — clearing the entire `full_page` cache (or all cache types) on saves that only ever needed to touch a handful of tags. This is invisible in `cache:status` (caches are still "Enabled") and easy to miss without tracing what actually gets cleared and why.
+
+### A. Built-in FPC (Redis or file cache backend, no Varnish)
+
+Every Magento cache frontend (config, layout, block_html, full_page, etc.) is wrapped by `Magento\Framework\Cache\Frontend\Decorator\Logger` out of the box (see `vendor/magento/magento2-base/app/etc/di.xml`) — this is backend-agnostic (identical on Redis or file) and needs **no env.php change at all**. Every `clean()`/`remove()` call already logs a `cache_invalidate:` line at DEBUG level via `Magento\Framework\Cache\InvalidateLogger`, e.g.:
+
+```
+[...] main.DEBUG: cache_invalidate:  {"method":"GET","url":"http:/...","invalidateInfo":{"tags":["cat_p_123","FPC"],"mode":"matchingTag"}} []
+[...] main.DEBUG: cache_invalidate:  {"method":"GET","url":"http:/...","invalidateInfo":{"tags":["FPC"],"mode":"matchingTag"}} []
+```
+
+**1. Confirm debug logging reaches `var/log/debug.log`.** Whether these DEBUG records are actually written depends on deployment config, not admin store config — `bin/magento config:set dev/debug/debug_logging 1` targets the wrong config store and will error (`Le chemin ... n'existe pas` / "path does not exist"). The real toggle is a deployment config value (`app/etc/env.php`), defaulting to **on** whenever the app is not in `production` mode:
+
+```bash
+govard sh -c "bin/magento deploy:mode:show"   # developer/default -> logging is on by default, nothing to change
+# Only needed on production (verbose — logs ALL debug-level messages app-wide, not just cache;
+# always pair with the matching --enable-debug-logging=0 once diagnosis is done):
+govard sh -c "bin/magento setup:config:set --enable-debug-logging=1"
+```
+
+**2. Reproduce ONE isolated action, then grep for the invalidation trail:**
+
+```bash
+govard sh -c "> var/log/debug.log"
+# ... perform the action (save one product, run one cron job, etc.) ...
+govard sh -c "grep 'cache_invalidate:' var/log/debug.log"
+```
+
+Read the `tags`/`mode` in each `invalidateInfo` payload. A correctly-scoped save produces tags that pair the entity's own tag with the type tag (e.g. `["cat_p_123","FPC"]`) — Magento adds `"FPC"` as `full_page`'s type-scope tag automatically, it does not by itself mean "everything got cleared". The actual smoking gun is an entry whose tags are **only** the bare type tag (`["FPC"]` alone, with no accompanying entity tag) — that clears every single cached page for one action. Also watch for the *same* tag set logged more than once within a few seconds of one save — that can be a redundant custom observer, though first rule out an async reindex (schedule-mode indexer draining the changelog) re-triggering the same invalidation shortly after, which is expected behavior, not a bug.
+
+**3. Cron/CLI-triggered invalidations, or entries whose `url`/`method` don't identify the caller** (a CLI-run action logs a generic `"method":"GET","url":"http:/"` with no useful context): add a temporary diagnostic plugin that logs a stack trace whenever `clean()` is called broadly — this is the only way to get a file:line for something triggered outside an HTTP request.
+
+```php
+<?php
+// app/code/Vendor/DevTools/Plugin/TraceCacheClean.php — TEMPORARY, remove after diagnosis
+declare(strict_types=1);
+
+namespace Vendor\DevTools\Plugin;
+
+use Magento\Framework\App\Cache;
+use Psr\Log\LoggerInterface;
+
+class TraceCacheClean
+{
+    public function __construct(private readonly LoggerInterface $logger)
+    {
+    }
+
+    public function beforeClean(Cache $subject, $mode = \Zend_Cache::CLEANING_MODE_ALL, array $tags = []): array
+    {
+        // Log unconditionally — only run this during ONE isolated reproduction step, so volume stays manageable
+        $this->logger->debug(
+            sprintf("CACHE CLEAN mode=%s tags=%s\n%s", $mode, implode(',', $tags), (new \Exception())->getTraceAsString())
+        );
+        return [$mode, $tags];
+    }
+}
+```
+
+```xml
+<!-- app/code/Vendor/DevTools/etc/di.xml — TEMPORARY -->
+<type name="Magento\Framework\App\Cache">
+    <plugin name="devtools_trace_cache_clean" type="Vendor\DevTools\Plugin\TraceCacheClean"/>
+</type>
+```
+
+The logged trace's file:line points directly at the observer/plugin/cron job issuing the clean. **Remove this plugin (and, if it was changed on production, revert `--enable-debug-logging`) as soon as diagnosis is done** — same rule as the query-log/profiler tools elsewhere in this skill: this is a diagnostic state, not something to leave running.
+
+### B. Varnish-fronted FPC
+
+Varnish invalidation happens via HTTP BAN requests carrying an `X-Magento-Tags-Pattern` header — Magento's `debug.log` doesn't see this directly, so trace it on the Varnish side:
+
+```bash
+# Watch BAN requests live as you reproduce an action
+varnishlog -g request -q 'ReqMethod eq "BAN"'
+
+# Inspect currently active bans — a fast-growing list, or any pattern that is
+# just ".*" (matches everything), is the same "flush-all" anti-pattern as mode=all above
+varnishadm ban.list
+```
+
+A `.*` pattern (or a pattern far broader than the tags of the entity actually saved) means the whole cache was purged for one change. To trace which PHP code issued that specific BAN, use the same temporary diagnostic plugin from branch A — Varnish purges still originate from the same `CacheInterface`/`clean_cache_by_tags` call path in Magento before the BAN request goes out.
+
+### Interpreting results
+
+| Signal | Pattern | Severity |
+|--------|---------|----------|
+| Full/blanket flush | debug.log entry whose tags are **only** the bare type tag (e.g. `["FPC"]` alone, no entity tag alongside it), or `X-Magento-Tags-Pattern: .*` in varnishlog/ban.list | High |
+| Over-broad tag scope | Tag list clears far more than the entity actually changed (e.g. clearing every `cat_p_*` tag for a single product save) | Medium-High |
+| Flush tied to non-rendering fields | Invalidation fires on saving a field never used in any cacheable block's `getIdentities()`/cache tags | Medium |
+| Untraceable / scheduled flush | Repeated clean/BAN entries with no corresponding admin/API save nearby — often a cron job or deploy script calling `cache:flush` on a timer "just in case" | High |
+| Duplicate flush per save | The same tag set logged more than once within seconds of one single save — rule out an async reindex re-invalidating the same tag shortly after (expected) before calling it a redundant custom observer (a bug) | Low-Medium |
+
+> Flush frequency should scale with save/import volume, not run on a fixed schedule unrelated to actual content changes. If `cache:flush`/`cache:clean` shows up in a cron job or deploy script "just to be safe," that's a scheduled full flush independent of whether anything relevant even changed — treat it the same as a bare-type-tag finding above.
+
+## Client-Side AJAX Request Load Audit
+
+A page can pass every check above — `full_page` cache enabled, invalidation narrowly scoped — and still overload the backend, because `full_page` only caches the initial HTML response. Customer data (private content), GraphQL calls, and custom AJAX endpoints are session/customer-scoped, so they bypass FPC entirely and hit PHP-FPM/the database on **every single page view**, cached HTML or not. This matters more than it used to: modern crawlers (SEO bots, AI scrapers, headless-Chrome-based tools) execute JS the same way a real browser does, so every page they crawl re-fires the same AJAX calls a human visitor would — a site can look fully cached in every metric above and still fall over under crawl volume, because the part that's actually uncached is invisible to an HTML/query-count audit.
+
+### 1. Capture the AJAX footprint of a representative page
+
+Do this for **each of the 3 page types** from the Per-Page-Type Audit (homepage, product, category) — same rationale: the AJAX footprint differs by page type just as much as the query/profiler footprint does, and a homepage-only check can miss the worst offender entirely (a real audit found the homepage firing one same-origin call, while the product page on the same site fired six distinct same-origin endpoints — the two page types are not interchangeable samples).
+
+Open Chrome DevTools > Network, filter to Fetch/XHR, and load the page **in incognito / with site data cleared** — this simulates what an anonymous visitor (or crawler) sees, not a footprint inflated or deflated by your own logged-in dev session.
+
+> **Watch specifically for `/customer/section/load` with an empty `sections` parameter** (`?sections=`). Magento has a long-standing quirk where an empty `sections` filter returns **every** registered section rather than none — including the full cart, checkout eligibility, and the complete worldwide country/region directory used by address forms. What looks like the cheapest, most trivial call on the page can silently be the single most expensive uncached response it makes. Check the actual response body size/content, not just the request URL, before dismissing it.
+
+- Count same-origin (your Magento domain) requests separately from third-party ones — only same-origin requests add load to your server; a Facebook/Google pixel call goes straight to their servers and isn't a Magento capacity concern (unless the project has a custom server-side tracking proxy — e.g. a controller relaying Conversion API/Measurement Protocol events — in which case treat that controller like any other custom AJAX endpoint below). In practice, on a real storefront this list is often dominated by third-party marketing tags (chat widgets, popups, review widgets, ad pixels) — don't let their volume distract from the (usually much smaller) same-origin count, which is the one that matters here.
+- For each same-origin XHR/fetch, check its response headers — anything `Cache-Control: private`/`no-store` (Magento surfaces this as `X-Magento-Cache-Debug: MISS` / `X-Magento-Cache-Control: ..., no-store` on its own responses) is a call that hits the backend fresh every time, unlike the FPC-served HTML.
+- Watch for the *same* same-origin endpoint firing more than once per page load, especially if each call sets a **new** `Set-Cookie: PHPSESSID=...` — that means each occurrence is opening its own PHP session server-side, doubling (or worse) the real backend cost of a single page view.
+
+Common first-party culprits to look for: `/customer/section/load` (private content / Customer Data), `/graphql` (if any theme/PWA component fetches client-side), custom wishlist/compare/stock-check/price AJAX endpoints, any custom analytics/tracking proxy controller, and — easy to miss — **third-party marketing/personalization integrations (Connectif, Klaviyo, Nosto, etc.) that ship their own customer/cart-context controller** to sync cart/login state into their widget. These sit entirely outside `sections.xml`/Magento's private-content system, so auditing §2 below won't catch them — only the network capture in this step will.
+
+### 2. Audit `sections.xml` for overly broad Customer Data invalidation
+
+`sections.xml` declares which Customer Data sections must be invalidated (forcing a `/customer/section/load` reload) after specific controller actions. A wildcard or over-broad rule forces **every** unrelated action to reload the **full** section list, not just what actually changed — the most common cause of a `/customer/section/load` reload storm.
+
+```xml
+<!-- WRONG - "*" invalidates ALL sections on ANY controller action -->
+<action name="*">
+    <section name="cart"/>
+    <section name="customer"/>
+    <section name="wishlist"/>
+    <section name="compare-products"/>
+    <section name="review"/>
+</action>
+
+<!-- CORRECT - scope invalidation to only the sections that action actually affects -->
+<action name="checkout_cart_add">
+    <section name="cart"/>
+</action>
+<action name="wishlist_index_add">
+    <section name="wishlist"/>
+</action>
+```
+
+```bash
+# Find wildcard/broad invalidation rules across custom and third-party modules
+grep -rn '<action name="\*"' app/code vendor/*/module-*/etc/frontend/sections.xml 2>/dev/null
+```
+
+> Magento core itself ships one wildcard rule (`vendor/magento/module-theme/etc/frontend/sections.xml`, `<action name="*"><section name="messages"/></action>`) — that one is expected and cheap (a single lightweight section on every action). It's not the anti-pattern; the anti-pattern is a wildcard rule reloading several/heavy sections. When grepping, check what's actually declared inside each match before flagging it — don't flag on the wildcard alone.
+
+Also check custom JS for widgets that force their own reload instead of relying on the invalidation-rule-driven one — this duplicates whatever `sections.xml` already triggers for the same user action:
+
+```javascript
+// WRONG - forces a reload of everything on every click, on top of whatever
+// the sections.xml invalidation rule for this action already reloads
+$('.some-widget').on('click', function () {
+    customerData.reload(['cart', 'customer', 'wishlist'], true);
+});
+
+// CORRECT - let sections.xml own invalidation for rule-covered sections;
+// only call reload() explicitly for a section with no matching action rule,
+// and scope it to just that section
+customerData.reload(['wishlist-widget-count'], false);
+```
+
 ## Code-Level Performance Patterns
 
 ### N+1 Query Detection (From magento2-dev-core)
@@ -341,6 +505,37 @@ public function getData(): array
 }
 ```
 
+### Inefficient Cache Invalidation
+
+```php
+// WRONG - blanket flush on every save, regardless of what actually changed
+class FlushFullPageCache implements ObserverInterface
+{
+    public function execute(Observer $observer): void
+    {
+        $this->cacheTypeList->cleanType(\Magento\PageCache\Model\Cache\Type::TYPE_IDENTIFIER); // clears ALL of full_page
+    }
+}
+
+// WRONG - "just in case" full flush from a cron job or deploy script,
+// unconditional and unrelated to whether anything relevant changed
+// bin/magento cache:flush
+
+// CORRECT - targeted invalidation scoped to the entity that actually changed
+public function execute(Observer $observer): void
+{
+    $product = $observer->getEvent()->getProduct();
+    $this->cache->clean(
+        \Zend_Cache::CLEANING_MODE_MATCHING_TAG,
+        [\Magento\Catalog\Model\Product::CACHE_TAG . '_' . $product->getId()]
+    );
+}
+
+// EVEN BETTER - don't add a parallel custom flush at all; make sure the
+// affected block/data actually participates in the entity's native getIdentities()
+// cache tags, so Magento's own save-time invalidation already covers it
+```
+
 ## Cron Health Check
 
 ```bash
@@ -397,6 +592,18 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 - [ ] All critical caches enabled
 - [ ] FPC enabled and configured
 
+## Cache Invalidation Efficiency
+- [ ] No unexplained full/`mode=all` flushes outside deploy/indexer/explicit admin-flush windows
+- [ ] Custom observers/plugins use targeted tag invalidation, not blanket `clean()`/`cache:flush`
+- [ ] (Varnish only) `varnishadm ban.list` shows no overly broad patterns (e.g. `.*`) originating from custom code
+- [ ] Flush frequency is proportional to actual entity save/import volume, not constant/scheduled
+
+## Client-Side AJAX Load
+- [ ] Same-origin (Magento) AJAX/XHR count on a fresh/anonymous page load noted as baseline
+- [ ] No wildcard (`<action name="*">`) Customer Data invalidation rules in `sections.xml`
+- [ ] No redundant `customerData.reload()` calls duplicating invalidation-rule-driven reloads
+- [ ] Uncacheable (session/customer-scoped) AJAX endpoints identified — these are what crawler/bot JS execution multiplies under load, independent of FPC hit rate
+
 ## Indexer Configuration
 - [ ] All indexers on "Update by Schedule"
 - [ ] Cron running properly
@@ -427,6 +634,8 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 1. Execute infrastructure checks (env.php, mode, cache status) — first confirm whether the target is local dev, staging, or production, since expectations differ (see note under Infrastructure Configuration)
 2. Run indexer status check, and verify cron is actually running/draining `cron_schedule`
 3. Run the Per-Page-Type Audit (homepage, product, category) with `full_page`/`block_html`/`layout` caches disabled — verify each test page is representative first (§0), then capture profiler + query log together (§1–2), then restore state (§3)
-4. Run Lighthouse / Core Web Vitals audit (if URL provided)
-5. Scan for code-level performance patterns
-6. Generate report with recommendations, prioritizing any finding that repeats across all 3 page types (site-wide impact) over page-specific ones
+4. Trace cache invalidation efficiency — enable temporary logging (debug.log for built-in Redis/file FPC, varnishlog/ban.list for Varnish), reproduce one isolated save/action, and flag any custom code causing broad/frequent flushes beyond Magento's default targeted invalidation
+5. Capture the AJAX footprint of a fresh/anonymous page load (Network tab) and audit `sections.xml` for overly broad Customer Data invalidation — these uncacheable requests are what crawler/bot JS execution multiplies regardless of FPC hit rate
+6. Run Lighthouse / Core Web Vitals audit (if URL provided)
+7. Scan for code-level performance patterns
+8. Generate report with recommendations, prioritizing any finding that repeats across all 3 page types (site-wide impact) over page-specific ones
