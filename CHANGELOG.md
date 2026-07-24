@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-07-24
+
+### Fixed
+- `magento2-performance-audit`: every `curl`-based capture example now requires a realistic
+  browser `Accept`/`User-Agent` and an HTTP-status check before the response is trusted. A live
+  audit this session found a bare `Accept: text/html` with no `User-Agent` silently triggering a
+  fatal 500 on every page type of a real project — the response still looked like a page (HTML,
+  a query log, a profiler table) and was analyzed as one, producing query counts wrong by 20-70x
+  with no indication anything had failed.
+- `magento2-performance-audit`: the DB query-count grep pattern (`grep -c '^## QUERY'`) was
+  anchored against a header format (`## <connectionId> ## QUERY`) that never matches at line
+  start, silently producing a false "0 queries" reading.
+- `magento2-performance-audit`: `bin/magento config:set dev/debug/debug_logging 1` targeted the
+  wrong config store for enabling cache-invalidation debug logging; corrected to the deployment
+  config command (`setup:config:set --enable-debug-logging=1`), and noted it's on by default
+  outside production mode.
+
+### Changed
+- `magento2-performance-audit`: replaced the flat `< 80` / `< 150` / `< 150` query-count
+  pass/fail gate with a tiered read (vanilla / typical-extensions / heavy-stack / likely-N+1)
+  plus project-specific baseline tracking for repeat audits — the flat numbers don't survive
+  contact with a real commerce Magento build carrying a typical third-party extension stack.
+- `magento2-performance-audit`: Core Web Vitals now prefers Chrome DevTools MCP's
+  `performance_start_trace` when available, with Lighthouse CI as the CI/no-MCP fallback.
+- `magento2-performance-audit`: noted the report can be published as a rendered artifact where
+  the environment supports it (e.g. Claude Code), with markdown staying the portable fallback.
+
+### Added
+- `magento2-performance-audit`: grep recipes for scanning `app/code` for N+1/collection-count
+  anti-patterns, vendor-vs-in-house guidance for third-party N+1s, business-critical severity
+  escalation for idle payment/inventory message-queue consumers, and a note that DB query counts
+  only cover the initial server-rendered request (not the page's own AJAX/GraphQL follow-ups).
+
 ## [0.2.0] - 2026-07-24
 
 ### Added
