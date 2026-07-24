@@ -636,6 +636,14 @@ curl -I https://store.test/ | grep -iE "x-.*debug|x-.*profile|^server:|x-powered
 ## Audit Report Template
 
 > **If the environment supports publishing a rendered page (e.g. Claude Code's `Artifact` tool), publish the report that way instead of — or alongside — raw markdown.** Severity reads as a color-coded chip/pill at a glance instead of a flat checklist, and a published link is easier to share with a team than pasted text. This is optional and environment-dependent (not available in Codex CLI/OpenCode/Copilot) — the markdown template below is the portable baseline every environment can produce, and if you do publish a rendered page, still include everything the template covers (URLs audited, all findings, severities) rather than a lighter summary.
+>
+> **A PDF copy can be produced from that same rendered HTML** — either the person viewing a published artifact link uses the browser's own Print → Save as PDF, or, from the CLI, headless Chrome renders it identically since the page is self-contained (inline CSS, no external fonts/CDN calls to fail mid-render):
+> ```bash
+> google-chrome --headless --disable-gpu --no-sandbox \
+>   --print-to-pdf="report.pdf" --print-to-pdf-no-header \
+>   "file://$(pwd)/report.html"
+> ```
+> This is a rendering convenience, not a substitute for keeping the markdown/HTML source — don't generate a PDF as the only copy of a report.
 
 ```markdown
 # Performance Audit Report

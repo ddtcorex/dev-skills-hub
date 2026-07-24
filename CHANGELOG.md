@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-07-24
+
+### Added
+- `magento2-performance-audit`: noted that a published report (markdown or rendered artifact) can
+  be exported to PDF via the browser's Print dialog or, from the CLI, headless Chrome
+  (`--print-to-pdf`) since the rendered page is self-contained — with a caveat that the PDF is a
+  rendering convenience, not a substitute for keeping the markdown/HTML source.
+
 ## [0.2.1] - 2026-07-24
 
 ### Fixed
